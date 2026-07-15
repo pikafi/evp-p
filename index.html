@@ -32,6 +32,27 @@
   .fade-up { animation: fadeUp .35s ease both; }
   .card-hover { transition: transform .15s ease, box-shadow .15s ease; }
   .card-hover:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(20,40,80,.12) !important; }
+
+  /* ── 手機版 (≤820px)：側欄轉頂部橫向導覽，多欄版面收成單欄 ── */
+  @media (max-width: 820px) {
+    .app-sidebar { position: sticky !important; top: 0; left: auto !important; bottom: auto !important;
+      width: 100% !important; height: auto !important; flex-direction: column !important; z-index: 60 !important; }
+    .sb-head { padding: 12px 16px !important; }
+    .sb-nav { display: flex !important; flex-direction: row !important; align-items: center;
+      overflow-x: auto !important; overflow-y: hidden !important;
+      padding: 8px 10px !important; gap: 5px; -webkit-overflow-scrolling: touch; }
+    .sb-nav > div { flex: 0 0 auto !important; margin-bottom: 0 !important; border-top: none !important;
+      padding-top: 10px !important; white-space: nowrap; }
+    .sb-foot { padding: 10px 14px !important; }
+    .sb-user { display: none !important; }
+    .app-content { margin-left: 0 !important; }
+    .app-crumb { padding: 10px 16px !important; position: static !important; }
+    .app-main { padding: 16px 14px 48px !important; }
+    /* 任何多欄 grid 一律收成單欄堆疊 */
+    [style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+    /* 表格可在卡片內水平捲動，避免撐破頁面 */
+    table { display: block; overflow-x: auto; white-space: nowrap; }
+  }
 </style>
 </head>
 <body>
@@ -66,7 +87,7 @@ const T = {
 };
 const RISK_COLORS = { RR3: '#2563eb', RR4: '#189a55', RR5: '#d64545' };
 
-const fmtUSD = (n) => '$' + Math.round(n).toLocaleString();
+const fmtUSD = (n) => 'NT$' + Math.round(n).toLocaleString();
 const fmtNT = (n) => {
   if (!isFinite(n)) return '—';
   const a = Math.abs(n), s = n < 0 ? '−' : '';
@@ -486,7 +507,7 @@ function StackedBars({ data, w = 460, h = 190, yFmt = fmtUSD }) {
 }
 
 // 複合圖：長條（金額，左軸）＋ 折線（比率 %，右軸）
-function ComboChart({ data, w = 540, h = 205, yFmt = n => '$'+(n/1000).toFixed(0)+'k' }) {
+function ComboChart({ data, w = 540, h = 205, yFmt = n => 'NT$'+(n/1000).toFixed(0)+'k' }) {
   const mxA = Math.max(...data.map(d => d.amt)) * 1.2 || 1;
   const px = 52, pr = 40, pw = w - px - pr, ph = h - 44;
   const bw = Math.min(30, pw / data.length * 0.46);
@@ -524,7 +545,7 @@ function DriftCard({ value, threshold = 3, items, compact }) {
   return (
     <Card style={{ flex: 1, minWidth: 200 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
-        <div style={{ fontSize: 12, color: T.mute, fontWeight: 600 }}>綜合偏離率（環圈圖）</div>
+        <div style={{ fontSize: 12, color: T.mute, fontWeight: 600 }}>綜合<Term k="偏離率">偏離率</Term>（環圈圖）</div>
         <Badge color={col}>{value < threshold ? '低於門檻' : '⚠ 超過門檻'}</Badge>
       </div>
       <div style={{ display:'flex', alignItems:'center', gap: 16, marginTop: 8 }}>
@@ -659,6 +680,17 @@ function NumInput({ v, set, w = 130, suffix }) {
     </div>
   );
 }
+// 名詞小提示：滑鼠移上顯示白話解釋（虛線底線，非可點擊）
+const GLOSSARY = {
+  'RR': '風險屬性等級：RR3 保守、RR4 穩健、RR5 積極。數字越高、預期報酬與波動越大。',
+  'MOIC': 'Multiple on Invested Capital，回收倍率＝合計回收 ÷ 投入本金；2.37x 代表每投入 1 元回收 2.37 元。',
+  '偏離率': '實際持倉與目標配置的差距。超過門檻時系統會提示再平衡，讓組合回到目標軌道。',
+  '蒙地卡羅': '以大量隨機情境模擬未來資產可能區間，呈現樂觀(P90)／中位(P50)／保守(P10)三條路徑。',
+  'AUM': 'Assets Under Management，管理資產規模，即帳戶目前的總資產金額。',
+};
+function Term({ k, children }) {
+  return <span title={GLOSSARY[k] || ''} style={{ borderBottom:`1px dotted ${T.mute}`, cursor:'help' }}>{children}</span>;
+}
 
 /* ═══════════════════════════════════════════════
    角色設定與選單（依 DEV_10 RBAC 矩陣）
@@ -704,17 +736,17 @@ const ROLES = {
 };
 // 主選單卡片描述（menu page）
 const MENU_DESC = {
-  L1: { org:'跨機構總覽、開通／停用、監控儀表板與下鑽', model:'全域／機構客製投組模型，發佈與基金池管理',
-        advice:'匯入員工資料，執行 B／C／D 再平衡引擎試算', emp:'員工名單維護、批量匯入與 AUM 歷史',
-        trade:'成交紀錄批量登錄、確認進帳與歷史回報', monitor:'全機構 AUM 儀表板、稽核查閱與通知設定',
-        sim:'模擬 07/01–07/07 一週行情，檢視模型／機構／員工損益' },
-  L2: { dash:'RR3／RR4／RR5 投組績效與員工投資明細（去識別）', evp:'參與率追蹤 + 信託 EVP 留才效益試算工具',
-        emp:'本公司員工名單、批量匯入與 AUM 歷史', advice:'本公司範圍的投組建議試算與歷史紀錄',
-        trade:'本公司成交回報登錄與成交歷史', model:'檢視預設各風險型投組（唯讀）',
-        sim:'模擬 07/01–07/07 一週行情，檢視模型與員工損益' },
-  L3: { dash:'總資產、成長趨勢、持倉明細與蒙地卡羅預測', trades:'個人成交紀錄查詢與憑證下載',
-        retire:'目標資產 × 月投入 → 達成度與長期趨勢', draw:'提領金額 × 報酬率 → 可提領年期預測',
-        member:'基本資料、KYC 風險屬性、安全與通知設定' },
+  L1: { org:'機構總覽、開通與監控', model:'投組模型設定與發佈',
+        advice:'再平衡引擎試算（B/C/D）', emp:'員工名單與 AUM 歷史',
+        trade:'成交回報登錄與查詢', monitor:'全域 AUM、稽核與通知',
+        sim:'一週行情模擬與損益' },
+  L2: { dash:'投組績效與員工明細', evp:'留才效益試算工具',
+        emp:'員工名單與 AUM 歷史', advice:'投組建議試算',
+        trade:'成交回報登錄', model:'檢視各風險型投組',
+        sim:'一週行情模擬' },
+  L3: { dash:'總資產與成長趨勢', trades:'成交紀錄與憑證下載',
+        retire:'退休目標達成度試算', draw:'退休提領年期試算',
+        member:'個人資料與風險屬性' },
 };
 
 /* ═══════════════════════════════════════════════
@@ -968,13 +1000,13 @@ function PageHead({ title, sub, right }) {
 function Sidebar({ role, page, setPage, onLogout, onSwitchRole }) {
   const r = ROLES[role];
   return (
-    <div style={{ width: 218, background: T.navy, color:'#c6d2e8', display:'flex', flexDirection:'column',
+    <div className="app-sidebar" style={{ width: 218, background: T.navy, color:'#c6d2e8', display:'flex', flexDirection:'column',
       position:'fixed', top: 0, bottom: 0, left: 0, zIndex: 50 }}>
-      <div style={{ padding:'20px 18px 16px', borderBottom:`1px solid ${T.navyLine}` }}>
+      <div className="sb-head" style={{ padding:'20px 18px 16px', borderBottom:`1px solid ${T.navyLine}` }}>
         <div style={{ fontSize: 15, fontWeight: 700, color:'#fff', letterSpacing:'.03em' }}>阿爾發企業留才系統</div>
         <div style={{ fontSize: 10.5, color:'#63759c', marginTop: 3 }}>v2 Prototype · User-Friendly</div>
       </div>
-      <div style={{ flex: 1, overflowY:'auto', padding:'12px 10px' }}>
+      <div className="sb-nav" style={{ flex: 1, overflowY:'auto', padding:'12px 10px' }}>
         {r.menu.map(m => (
           <div key={m.id} onClick={() => setPage(m.id)} style={{
             display:'flex', alignItems:'center', gap: 10, padding:'10px 12px', borderRadius: 9,
@@ -995,8 +1027,8 @@ function Sidebar({ role, page, setPage, onLogout, onSwitchRole }) {
           <span>❓</span><span>常見問題</span>
         </div>
       </div>
-      <div style={{ padding:'14px 16px', borderTop:`1px solid ${T.navyLine}` }}>
-        <div style={{ display:'flex', alignItems:'center', gap: 10 }}>
+      <div className="sb-foot" style={{ padding:'14px 16px', borderTop:`1px solid ${T.navyLine}` }}>
+        <div className="sb-user" style={{ display:'flex', alignItems:'center', gap: 10 }}>
           <div style={{ width: 34, height: 34, borderRadius:'50%', background: r.color,
             display:'flex', alignItems:'center', justifyContent:'center', fontSize: 16 }}>{r.icon}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -1038,19 +1070,25 @@ function MenuHome({ role, setPage, onTour }) {
           <Btn size="sm" onClick={() => setPage('faq')} style={{ background:'rgba(255,255,255,.92)', color: T.navy }}>❓ 常見問題</Btn>
         </div>
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
         {items.map((m, i) => (
-          <Card key={m.id} className="card-hover fade-up" style={{ cursor:'pointer', animationDelay:`${i*0.05}s` }}
+          <Card key={m.id} className="card-hover fade-up" style={{ cursor:'pointer', animationDelay:`${i*0.05}s`,
+            display:'flex', flexDirection:'column' }}
             onClick={() => setPage(m.id)}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
-              <span style={{ fontSize: 30 }}>{m.icon}</span>
+            <div style={{ display:'flex', alignItems:'center', gap: 13 }}>
+              <div style={{ width: 46, height: 46, borderRadius: 12, flexShrink: 0,
+                background: r.color + '18', display:'flex', alignItems:'center', justifyContent:'center', fontSize: 24 }}>
+                {m.icon}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.25 }}>{m.label}</div>
+              </div>
               <PermBadge level={m.perm} />
             </div>
-            <div style={{ fontSize: 15.5, fontWeight: 700, margin:'12px 0 6px' }}>{m.label}</div>
-            <div style={{ fontSize: 12.5, color: T.mute, lineHeight: 1.7, minHeight: 42 }}>
+            <div style={{ fontSize: 12.5, color: T.mute, marginTop: 11 }}>
               {(MENU_DESC[role] || {})[m.id] || ''}
             </div>
-            <div style={{ color: T.blue, fontSize: 12.5, fontWeight: 700, marginTop: 10 }}>進入模組 →</div>
+            <div style={{ color: r.color, fontSize: 13, fontWeight: 700, marginTop: 14 }}>進入 →</div>
           </Card>
         ))}
       </div>
@@ -1082,7 +1120,7 @@ function OrgPage() {
                 </div>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px 14px', marginTop: 12, fontSize: 11.5 }}>
                   <div><span style={{ color: T.mute }}>投資成本</span><div className="mono" style={{ fontWeight:600 }}>{fmtUSD(o.cost)}</div></div>
-                  <div><span style={{ color: T.mute }}>投資損益</span><div className="mono" style={{ fontWeight:600, color: o.gain >= 0 ? T.green : T.red }}>{o.gain >= 0 ? '+' : ''}{fmtUSD(o.gain).replace('$-','-$')}</div></div>
+                  <div><span style={{ color: T.mute }}>投資損益</span><div className="mono" style={{ fontWeight:600, color: o.gain >= 0 ? T.green : T.red }}>{o.gain >= 0 ? '+' : '−'}{fmtUSD(Math.abs(o.gain))}</div></div>
                   <div><span style={{ color: T.mute }}>現金水位</span><div className="mono" style={{ fontWeight:600 }}>{fmtUSD(o.cash)}</div></div>
                   <div><span style={{ color: T.mute }}>綜合偏離率</span><div className="mono" style={{ fontWeight:600, color: o.drift > 3 ? T.red : T.ink }}>{o.drift}%</div></div>
                 </div>
@@ -1129,7 +1167,7 @@ function OrgDetail({ org, onBack }) {
           ]} />
           <Card>
             <CardTitle sub="長條為各月底 AUM，上方標示月增率。">機構 AUM 月變化與月增率</CardTitle>
-            <BarChart w={560} h={150} yFmt={n => '$'+(n/1e6).toFixed(1)+'M'} data={[
+            <BarChart w={560} h={150} yFmt={n => 'NT$'+(n/1e6).toFixed(1)+'M'} data={[
               { l:'2026-02', v: org.aum * 0.82, c:'#c3d4f5' },
               { l:'2026-03', v: org.aum * 0.86, c:'#a9c2f0', g: 4.9 },
               { l:'2026-04', v: org.aum * 0.90, c:'#8fb0ec', g: 4.7 },
@@ -1141,8 +1179,8 @@ function OrgDetail({ org, onBack }) {
         <Card>
           <CardTitle sub="包含公司會計專戶與員工子帳戶"
             right={<span style={{ fontSize: 12, color: T.mute }}>資產總覽（公+自）▾</span>}>
-            監控儀表板　<span className="mono" style={{ fontSize: 13, color: T.blue }}>公提 $123,499</span>
-            <span className="mono" style={{ fontSize: 13, color: T.green }}>自提 $95,000</span>
+            監控儀表板　<span className="mono" style={{ fontSize: 13, color: T.blue }}>公提 NT$123,499</span>
+            <span className="mono" style={{ fontSize: 13, color: T.green }}>自提 NT$95,000</span>
           </CardTitle>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap: 14 }}>
             {MODELS.map((m, i) => (
@@ -1152,10 +1190,10 @@ function OrgDetail({ org, onBack }) {
                   <span className="mono" style={{ fontSize: 11, color: i === 1 ? T.red : T.green }}>{i === 1 ? '-0.6%' : '+' + (i ? '2.1' : '0.8') + '%'}</span>
                 </div>
                 <div style={{ display:'flex', justifyContent:'center', margin:'6px 0' }}>
-                  <Donut size={92} stroke={14} center={`$${(30+i*25)}k`} data={m.alloc.map((a, j) =>
+                  <Donut size={92} stroke={14} center={`NT$${(30+i*25)}k`} data={m.alloc.map((a, j) =>
                     ({ v: a.w, c: [RISK_COLORS[m.key], T.green, T.orange, T.dim][j % 4] }))} />
                 </div>
-                <LineChart w={230} h={86} yFmt={n => '$'+(n/1000).toFixed(0)+'k'}
+                <LineChart w={230} h={86} yFmt={n => 'NT$'+(n/1000).toFixed(0)+'k'}
                   series={[{ pts: Array.from({ length: 7 }, (_, j) => 20000 + j * (3000 + i * 2200) + (i===1? -j*800 : 0)), c: RISK_COLORS[m.key] }]}
                   labels={[{i:0,t:'第1月'},{i:3,t:'第4月'},{i:6,t:'第7月'}]} />
               </div>
@@ -1168,9 +1206,9 @@ function OrgDetail({ org, onBack }) {
           <CardTitle sub="檢視各月份機構總資產報告與對應之顧問費金額紀錄。">每月底 AUM 與顧問費紀錄</CardTitle>
           <Tbl head={['結算月份','月底 AUM','顧問費金額']} align={['left','right','right']}
             rows={[
-              ['2026-05', <span className="mono">$12,500,000</span>, <span className="mono" style={{ color: T.blue, fontWeight:700 }}>$12,500</span>],
-              ['2026-04', <span className="mono">$12,200,000</span>, <span className="mono" style={{ color: T.blue, fontWeight:700 }}>$12,200</span>],
-              ['2026-03', <span className="mono">$11,800,000</span>, <span className="mono" style={{ color: T.blue, fontWeight:700 }}>$11,000</span>],
+              ['2026-05', <span className="mono">NT$12,500,000</span>, <span className="mono" style={{ color: T.blue, fontWeight:700 }}>NT$12,500</span>],
+              ['2026-04', <span className="mono">NT$12,200,000</span>, <span className="mono" style={{ color: T.blue, fontWeight:700 }}>NT$12,200</span>],
+              ['2026-03', <span className="mono">NT$11,800,000</span>, <span className="mono" style={{ color: T.blue, fontWeight:700 }}>NT$11,000</span>],
             ]} />
         </Card>
       )}
@@ -1400,9 +1438,9 @@ function AdvicePage({ role }) {
                     <span style={{ fontSize: 11.5, color: T.mute }}>無需輸入金額 — 直接依目標權重「賣超配、買低配」</span>);
                   else {
                     cells.push(<div><NumInput w={100} v={amounts[e.id].pub} set={v => setAmt(e.id,'pub',v)} />
-                      <div style={{ fontSize: 10, color: T.green, marginTop: 3 }}>建議 +${(e.pub/2).toLocaleString()}</div></div>);
+                      <div style={{ fontSize: 10, color: T.green, marginTop: 3 }}>建議 +NT${(e.pub/2).toLocaleString()}</div></div>);
                     cells.push(<div><NumInput w={100} v={amounts[e.id].self} set={v => setAmt(e.id,'self',v)} />
-                      <div style={{ fontSize: 10, color: T.dim, marginTop: 3 }}>{e.self ? `上月 +$${e.self.toLocaleString()}` : '—'}</div></div>);
+                      <div style={{ fontSize: 10, color: T.dim, marginTop: 3 }}>{e.self ? `上月 +NT$${e.self.toLocaleString()}` : '—'}</div></div>);
                   }
                   return cells;
                 })} />
@@ -1523,22 +1561,41 @@ function EmpPage({ role }) {
               <Btn size="sm">＋ 新增員工</Btn>
             </div>
           </div>
-          <Tbl head={['ID','姓名','風險屬性','企業部門','公提與自提餘額','投入總成本','目前市值','累積損益','報酬率']}
-            align={['left','left','left','left','right','right','right','right','right']}
-            rows={list.map(e => [
-              <span className="mono" style={{ fontSize: 11.5 }}>{e.id}</span>,
-              <span style={{ fontWeight: 600 }}>{e.name}</span>,
-              <Badge color={RISK_COLORS[e.risk]}>{e.riskLabel} ({e.risk})</Badge>,
-              e.dept,
-              <div className="mono" style={{ fontSize: 11.5, lineHeight: 1.5 }}>
-                <div style={{ color: T.blue }}>${e.pub.toLocaleString()}</div>
-                <div style={{ color: T.green }}>${e.self.toLocaleString()}</div>
-              </div>,
-              <span className="mono">${e.cost.toLocaleString()}</span>,
-              <span className="mono" style={{ fontWeight: 600 }}>${e.mv.toLocaleString()}</span>,
-              <span className="mono" style={{ color: e.drift < 0 ? T.red : e.drift > 0 ? T.green : T.mute }}>{e.drift.toFixed(1)}%</span>,
-              <span className="mono" style={{ color: e.ret >= 100 ? T.red : T.mute, fontWeight: 600 }}>{e.ret.toFixed(1)}%</span>,
-            ])} />
+          {role === 'L2' && (
+            <div style={{ display:'flex', gap: 10, alignItems:'flex-start', marginBottom: 12, padding:'9px 13px',
+              background: T.bluePale, border:`1px solid ${T.blueBorder}`, borderRadius: 9,
+              fontSize: 11.5, color: T.inkSoft, lineHeight: 1.6 }}>
+              <span>🔒</span>
+              <span>依法遵規範（RBAC L1-4），公司端可管理員工名單並檢視公提／自提餘額，
+                但<b>個別員工的投資明細（持倉、市值、報酬率）為去識別、不予呈現</b>。如需個人層級資料，請由投研端協助。</span>
+            </div>
+          )}
+          <Tbl head={role === 'L2'
+              ? ['ID','姓名','風險屬性','企業部門','公提與自提餘額','投資明細']
+              : ['ID','姓名','風險屬性','企業部門','公提與自提餘額','投入總成本','目前市值','累積損益','報酬率']}
+            align={role === 'L2'
+              ? ['left','left','left','left','right','center']
+              : ['left','left','left','left','right','right','right','right','right']}
+            rows={list.map(e => {
+              const base = [
+                <span className="mono" style={{ fontSize: 11.5 }}>{e.id}</span>,
+                <span style={{ fontWeight: 600 }}>{e.name}</span>,
+                <Badge color={RISK_COLORS[e.risk]}>{e.riskLabel} ({e.risk})</Badge>,
+                e.dept,
+                <div className="mono" style={{ fontSize: 11.5, lineHeight: 1.5 }}>
+                  <div style={{ color: T.blue }}>NT${e.pub.toLocaleString()}</div>
+                  <div style={{ color: T.green }}>NT${e.self.toLocaleString()}</div>
+                </div>,
+              ];
+              if (role === 'L2') return [...base,
+                <span style={{ fontSize: 11, color: T.dim }}>🔒 去識別</span>];
+              return [...base,
+                <span className="mono">NT${e.cost.toLocaleString()}</span>,
+                <span className="mono" style={{ fontWeight: 600 }}>NT${e.mv.toLocaleString()}</span>,
+                <span className="mono" style={{ color: e.drift < 0 ? T.red : e.drift > 0 ? T.green : T.mute }}>{e.drift.toFixed(1)}%</span>,
+                <span className="mono" style={{ color: e.ret >= 100 ? T.red : T.mute, fontWeight: 600 }}>{e.ret.toFixed(1)}%</span>,
+              ];
+            })} />
         </Card>
       ) : (
         <Card>
@@ -1546,14 +1603,14 @@ function EmpPage({ role }) {
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap: 12, marginBottom: 16 }}>
             <div style={{ background:'#f8fafc', borderRadius: 10, padding:'13px 17px' }}>
               <div style={{ fontSize: 11.5, color: T.mute }}>目前總 AUM（會計成本）</div>
-              <div className="mono" style={{ fontSize: 22, fontWeight: 700 }}>$28,500</div>
+              <div className="mono" style={{ fontSize: 22, fontWeight: 700 }}>NT$28,500</div>
             </div>
             <div style={{ background: T.bluePale, borderRadius: 10, padding:'13px 17px' }}>
               <div style={{ fontSize: 11.5, color: T.mute }}>目前總市值</div>
-              <div className="mono" style={{ fontSize: 22, fontWeight: 700, color: T.blue }}>$28,499</div>
+              <div className="mono" style={{ fontSize: 22, fontWeight: 700, color: T.blue }}>NT$28,499</div>
             </div>
           </div>
-          <LineChart w={640} h={170} yFmt={n => '$'+(n/1000).toFixed(1)+'k'}
+          <LineChart w={640} h={170} yFmt={n => 'NT$'+(n/1000).toFixed(1)+'k'}
             series={[
               { pts: AUM_HISTORY.slice().reverse().map(a => a.pub), c: T.blue },
               { pts: AUM_HISTORY.slice().reverse().map(a => a.self), c: T.green },
@@ -1738,7 +1795,7 @@ function MonitorPage() {
         <div style={{ display:'grid', gridTemplateColumns:'280px 1fr', gap: 16 }}>
           <Card>
             <div style={{ fontSize: 12, color: T.mute, fontWeight: 600 }}>全機構管理總資產 (AUM)</div>
-            <div className="mono" style={{ fontSize: 30, fontWeight: 700, margin:'12px 0 8px' }}>$60,300,000</div>
+            <div className="mono" style={{ fontSize: 30, fontWeight: 700, margin:'12px 0 8px' }}>NT$60,300,000</div>
             <Badge color={T.green}>📈 較上月 +12.4%</Badge>
           </Card>
           <Card>
@@ -1920,8 +1977,8 @@ function MarketSimPage() {
             rows={empRows.map(({ e, end, ret }) => [
               <span style={{ fontWeight: 600 }}>{e.name}</span>,
               <Badge color={RISK_COLORS[e.risk]}>{e.risk}</Badge>,
-              <span className="mono">${e.mv.toLocaleString()}</span>,
-              <span className="mono" style={{ fontWeight: 600 }}>${Math.round(end).toLocaleString()}</span>,
+              <span className="mono">NT${e.mv.toLocaleString()}</span>,
+              <span className="mono" style={{ fontWeight: 600 }}>NT${Math.round(end).toLocaleString()}</span>,
               fmtR(ret),
             ])} />
           <div style={{ marginTop: 10, padding:'9px 13px', background:'#f8fafc', border:`1px dashed ${T.line}`,
@@ -1944,8 +2001,8 @@ function L2Dashboard({ topUpTotal = 0 }) {
         right={<span style={{ fontSize: 12.5, color: T.mute, background:'#fff', border:`1px solid ${T.line}`,
           borderRadius: 8, padding:'7px 13px' }}>▽ 資產總覽（公+自）▾</span>} />
       <div style={{ display:'flex', gap: 12, marginBottom: 16 }}>
-        <KPI label="投資總資產 (AUM) · 公提" value="$123,499" sub="公司會計專戶" color={T.blue} icon="🏦" />
-        <KPI label="投資總資產 · 自提" value={'$' + (95000 + topUpTotal).toLocaleString()} sub="員工子帳戶合計" color={T.green} icon="🌱" />
+        <KPI label="投資總資產 (AUM) · 公提" value="NT$123,499" sub="公司會計專戶" color={T.blue} icon="🏦" />
+        <KPI label="投資總資產 · 自提" value={'NT$' + (95000 + topUpTotal).toLocaleString()} sub="員工子帳戶合計" color={T.green} icon="🌱" />
         <KPI label="整體參與率" value="80.5%" sub="+4.5%（較上月）" color={T.ink} icon="👥" />
         <DriftCard compact value={1.8} items={[
           { l:'機構層', v:'1.8%', c: T.green },
@@ -1961,10 +2018,10 @@ function L2Dashboard({ topUpTotal = 0 }) {
               <span className="mono" style={{ fontSize: 11.5, color: i === 1 ? T.red : T.green }}>{i === 1 ? '-0.6%' : '+' + (i ? '2.1' : '0.8') + '%'}</span>
             </div>
             <div style={{ display:'flex', justifyContent:'center', margin:'8px 0' }}>
-              <Donut size={104} stroke={15} center={`$${30 + i * 25}k`} data={m.alloc.map((a, j) =>
+              <Donut size={104} stroke={15} center={`NT$${30 + i * 25}k`} data={m.alloc.map((a, j) =>
                 ({ v: a.w, c: [RISK_COLORS[m.key], T.green, T.orange, T.dim][j % 4] }))} />
             </div>
-            <LineChart w={250} h={92} yFmt={n => '$'+(n/1000).toFixed(0)+'k'}
+            <LineChart w={250} h={92} yFmt={n => 'NT$'+(n/1000).toFixed(0)+'k'}
               series={[{ pts: Array.from({ length: 7 }, (_, j) => 20000 + j * (3000 + i * 2200) + (i===1? -j*700 : 0)), c: RISK_COLORS[m.key] }]}
               labels={[{i:0,t:'第1月'},{i:3,t:'第4月'},{i:6,t:'第7月'}]} />
           </Card>
@@ -1977,8 +2034,8 @@ function L2Dashboard({ topUpTotal = 0 }) {
           rows={EMPLOYEES.slice(0, 5).map((e, i) => [
             <span className="mono">EMP-{String(i + 1).padStart(3, '0')}</span>,
             <Badge color={RISK_COLORS[e.risk]}>{e.riskLabel}</Badge>,
-            <span className="mono" style={{ color: T.blue }}>${e.pub.toLocaleString()}</span>,
-            <span className="mono" style={{ color: T.green }}>${e.self.toLocaleString()}</span>,
+            <span className="mono" style={{ color: T.blue }}>NT${e.pub.toLocaleString()}</span>,
+            <span className="mono" style={{ color: T.green }}>NT${e.self.toLocaleString()}</span>,
             <span className="mono" style={{ fontWeight: 600 }}>{e.ret.toFixed(1)}%</span>,
           ])} />
       </Card>
@@ -2036,7 +2093,7 @@ function RetentionDash({ topUpTotal = 0 }) {
         </Card>
         <Card>
           <CardTitle sub="堆疊長條呈現各月公提與自提組成；自提占比升至 35%，顯示員工認同度提升。">🧱 整體資金結構（公提 vs 自提）</CardTitle>
-          <StackedBars h={175} yFmt={n => '$'+(n/1000).toFixed(0)+'k'} data={[
+          <StackedBars h={175} yFmt={n => 'NT$'+(n/1000).toFixed(0)+'k'} data={[
             { l:'2月', parts:[{ v: 232000, c: T.blue }, { v: 104000, c: T.green }] },
             { l:'3月', parts:[{ v: 245000, c: T.blue }, { v: 116000, c: T.green }] },
             { l:'4月', parts:[{ v: 258000, c: T.blue }, { v: 130000, c: T.green }] },
@@ -2105,6 +2162,7 @@ function EVPCalc() {
   const [withProd, setWithProd] = useState(false);
   const [rPct, setRPct] = useState(10);
   const [rPreset, setRPreset] = useState('成長');
+  const [acc, setAcc] = useState({}); // 分項分析預設全部收合，需要時才展開（progressive disclosure）
   const r = rPct / 100;
   const R_PRESETS = [
     { label:'保守', r: 6 }, { label:'穩健', r: 8 }, { label:'成長', r: 10 }, { label:'積極', r: 12 },
@@ -2129,6 +2187,25 @@ function EVPCalc() {
       <div style={{ flex: 1, height: 1, background: T.line }} />
     </div>
   );
+  // 可展開／收合的分項分析（收合時仍以摘要數字呈現重點）
+  const AccSection = ({ id, title, summary, children }) => {
+    const isOpen = !!acc[id];
+    return (
+      <div>
+        <button onClick={() => setAcc(s => ({ ...s, [id]: !s[id] }))}
+          style={{ width:'100%', display:'flex', alignItems:'center', gap: 12, padding:'15px 20px',
+            background:'#fff', border:`1px solid ${isOpen ? GOLD.border : T.line}`, borderRadius: 12,
+            boxShadow: T.shadow, cursor:'pointer', textAlign:'left' }}>
+          <span style={{ width: 7, height: 7, borderRadius:'50%', background: isOpen ? GOLD.g : T.dim, flexShrink: 0 }} />
+          <span style={{ fontSize: 14.5, fontWeight: 700, color: T.ink, whiteSpace:'nowrap' }}>{title}</span>
+          <span className="mono" style={{ flex: 1, fontSize: 12, color: T.inkSoft, textAlign:'right' }}>{summary}</span>
+          <span style={{ fontSize: 13, color: T.mute, transform: isOpen ? 'rotate(180deg)' : 'none',
+            transition:'transform .2s', flexShrink: 0 }}>⌄</span>
+        </button>
+        {isOpen && <div className="fade-up" style={{ display:'flex', flexDirection:'column', gap: 14, marginTop: 14 }}>{children}</div>}
+      </div>
+    );
+  };
   return (
     <div>
       {/* 決策者摘要（深色橫幅） */}
@@ -2238,7 +2315,11 @@ function EVPCalc() {
           </Card>
         </div>
         {/* 右欄 */}
-        <div style={{ display:'flex', flexDirection:'column', gap: 14 }}>
+        <div style={{ display:'flex', flexDirection:'column', gap: 12 }}>
+          <div style={{ fontSize: 12, color: T.mute, padding:'2px 2px 4px' }}>
+            以上為決策摘要。以下分項分析預設收合，點選標題可展開細節。
+          </div>
+          <AccSection id="mech" title="方案運作機制" summary={`年化 ${rPct}% → 年度公提 ${fmtNT(res.Cannual)}`}>
           {/* ① 飛輪 */}
           <div style={{ border:`2px solid ${GOLD.border}`, background: GOLD.pale, borderRadius: 12, overflow:'hidden' }}>
             <div style={{ background: GOLD.g, color:'#fff', padding:'11px 20px',
@@ -2313,6 +2394,9 @@ function EVPCalc() {
               </div>
             </div>
           </div>
+          </AccSection>
+
+          <AccSection id="ret" title="留才效益分析" summary={`每年可省 ${fmtNT(res.annualTurnover)}（消除損失 ${savePct}%）`}>
           {/* ② 不行動的代價 */}
           <Card>
             <PanelTitle>② 不行動的代價</PanelTitle>
@@ -2384,6 +2468,9 @@ function EVPCalc() {
               ))}
             </div>
           </Card>
+          </AccSection>
+
+          <AccSection id="val" title="總經濟價值（含生產力回升）" summary={`10 年淨效益 ${fmtNT(res.netValue)} · MOIC ${res.moic.toFixed(2)}x`}>
           {/* ④ 生產力回升 */}
           <Card>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom: 12 }}>
@@ -2463,7 +2550,7 @@ function EVPCalc() {
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap: 10, width:'100%', marginTop: 4 }}>
                 {[
-                  { l:'回收倍率 MOIC', v:`${res.moic.toFixed(2)}x`, s:'合計回收 ÷ 投入' },
+                  { l: <span>回收倍率 <Term k="MOIC">MOIC</Term></span>, v:`${res.moic.toFixed(2)}x`, s:'合計回收 ÷ 投入' },
                   { l:'每元淨賺', v:`${(res.moic - 1).toFixed(2)} 元`, s:'扣除投入後淨值' },
                   { l:'節省回本年', v: res.payback !== null ? `第 ${res.payback.toFixed(1)} 年` : `＞${res.T} 年`, s:'累積節省追平投入' },
                 ].map(row => (
@@ -2488,6 +2575,9 @@ function EVPCalc() {
               <EVPQuote color={GOLD.g} text="95% 的員工表示，退休規劃與長期財務保障，是選擇下一位雇主的重要考量因素。" src="Morgan Stanley 職場財務福利研究 2026" />
             </div>
           </Card>
+          </AccSection>
+
+          <AccSection id="scn" title="報酬率情境對照" summary={`目前 ${rPreset || '自訂'} ${rPct}%`}>
           {/* ⑥ 報酬率情境對照（依規格 1.4 四種預設組合） */}
           <Card>
             <PanelTitle>⑥ 報酬率情境對照　保守／穩健／成長／積極</PanelTitle>
@@ -2543,6 +2633,7 @@ function EVPCalc() {
               因此回收倍率 MOIC 越高、回本年越早。淨效益在保本型設計下跨報酬率相同。
             </div>
           </Card>
+          </AccSection>
           <div style={{ fontSize: 10, color: T.mute, fontStyle:'italic', lineHeight: 1.8, padding:'0 4px' }}>
             本試算為情境分析，僅供參考，不構成投資建議。實際結果受企業文化、產業特性與市場環境影響。離職成本估算依 Gallup、SHRM 研究方法；
             財務壓力數據引用 Morgan Stanley Workplace Financial Benefits Study 2026、EBRI 2024。
@@ -2560,68 +2651,99 @@ function EVPCalc() {
    注意：僅更新 App 層共用的自提 ledger，
    不建立平行資料結構；不影響 EVP 引擎（規格如此）。
 ═══════════════════════════════════════════════ */
-function TopUpCard({ topUps, onTopUp }) {
+function TopUpCard({ topUps, onTopUp, currentTotal }) {
   const [amt, setAmt] = useState('');
   const [justSent, setJustSent] = useState(null);
   const total = topUps.reduce((a, t) => a + t.amt, 0);
+  const n = Math.max(0, Number(amt) || 0);
+  // 即時預估：一筆加碼到 65 歲退休（25 年、RR4 年化 6.5%）的成長
+  const AGE = 40, RET = 65, R = 0.065, MONTHLY = 350;
+  const base = retirementProject({ age: AGE, retireAge: RET, monthly: MONTHLY, start: currentTotal, r: R });
+  const boost = retirementProject({ age: AGE, retireAge: RET, monthly: MONTHLY, start: currentTotal + n, r: R });
+  const diff = boost.final - base.final;              // 這筆錢到退休時的未來價值
+  const labels = [0, 5, 10, 15, 20, 25].map(y => ({ i: y, t: `${AGE + y}歲` }));
   const submit = () => {
-    const n = Number(amt);
-    if (!n || n <= 0) return;
-    onTopUp(n);
-    setJustSent(n);
-    setAmt('');
+    if (n <= 0) return;
+    onTopUp(n); setJustSent(n); setAmt('');
   };
   return (
     <Card style={{ border: `1.5px solid ${T.greenBorder}` }}>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr', gap: 18, alignItems:'start' }}>
-        <div>
-          <div style={{ display:'flex', gap: 10, alignItems:'center', marginBottom: 10 }}>
-            <span style={{ fontSize: 15, fontWeight: 700 }}>🌱 自提金加碼</span>
-            <Badge color={T.green}>企業合作方案</Badge>
-          </div>
-          <div style={{ fontSize: 12, color: T.mute, marginBottom: 10 }}>
-            投入金額將併入您的信託帳戶，依目前風險屬性（穩健型 RR4）之目標配置於下一交易日買入。
-          </div>
-          <div style={{ display:'flex', gap: 8, marginBottom: 8 }}>
+      <div style={{ display:'flex', gap: 10, alignItems:'center', marginBottom: 6 }}>
+        <span style={{ fontSize: 16, fontWeight: 700 }}>🌱 自提金加碼</span>
+        <Badge color={T.green}>企業合作方案</Badge>
+      </div>
+      <div style={{ fontSize: 12.5, color: T.mute, marginBottom: 16 }}>
+        投入金額併入您的信託帳戶，依風險屬性（穩健型 RR4）配置；下方即時預覽這筆錢到退休時的成長。
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'320px 1fr', gap: 22, alignItems:'stretch' }}>
+        {/* 左：輸入 */}
+        <div style={{ display:'flex', flexDirection:'column' }}>
+          <div style={{ display:'flex', gap: 8, marginBottom: 10 }}>
             {[1000, 3000, 5000].map(q => (
               <button key={q} onClick={() => setAmt(String(q))} style={{
-                fontSize: 12, fontWeight: 600, padding:'5px 12px', borderRadius: 20,
-                border:`1px solid ${amt === String(q) ? T.green : T.line}`,
+                flex: 1, fontSize: 13, fontWeight: 700, padding:'9px 0', borderRadius: 9,
+                border:`1.5px solid ${amt === String(q) ? T.green : T.line}`,
                 background: amt === String(q) ? T.greenPale : '#fff',
-                color: amt === String(q) ? T.green : T.inkSoft }}>${q.toLocaleString()}</button>
+                color: amt === String(q) ? T.green : T.inkSoft, cursor:'pointer' }}>NT${q.toLocaleString()}</button>
             ))}
           </div>
-          <div style={{ display:'flex', gap: 8 }}>
+          <div style={{ display:'flex', gap: 8, marginBottom: 12 }}>
             <input type="number" min="1" placeholder="自訂金額 (USD)" value={amt}
               onChange={e => setAmt(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && submit()}
-              className="mono" style={{ flex: 1, padding:'9px 12px', border:`1px solid ${T.line}`,
-                borderRadius: 8, fontSize: 14, textAlign:'right', outline:'none' }} />
-            <Btn kind="green" onClick={submit} disabled={!Number(amt) || Number(amt) <= 0}>確認加碼</Btn>
+              className="mono" style={{ flex: 1, padding:'11px 13px', border:`1px solid ${T.line}`,
+                borderRadius: 9, fontSize: 15, textAlign:'right', outline:'none' }} />
+            <Btn kind="green" onClick={submit} disabled={n <= 0}>確認加碼</Btn>
           </div>
           {justSent && (
-            <div className="fade-up" style={{ marginTop: 10, padding:'9px 13px', borderRadius: 9,
+            <div className="fade-up" style={{ marginBottom: 10, padding:'10px 13px', borderRadius: 9,
               background: T.greenPale, border:`1px solid ${T.greenBorder}`, fontSize: 12,
               color: T.green, fontWeight: 600 }}>
               ✓ 已送出 ${justSent.toLocaleString()} 加碼申請 — 可於「成交明細」追蹤（狀態：處理中）
             </div>
           )}
           {total > 0 && (
-            <div style={{ marginTop: 8, fontSize: 11.5, color: T.mute }}>
-              本次登入累計加碼 <span className="mono" style={{ color: T.green, fontWeight: 700 }}>${total.toLocaleString()}</span>
-              （{topUps.length} 筆）
+            <div style={{ fontSize: 11.5, color: T.mute, marginBottom: 12 }}>
+              本次登入累計加碼 <span className="mono" style={{ color: T.green, fontWeight: 700 }}>NT${total.toLocaleString()}</span>（{topUps.length} 筆）
             </div>
           )}
+          <div style={{ marginTop:'auto', background:'#f8fafc', border:`1px dashed ${T.line}`, borderRadius: 10,
+            padding:'12px 14px', fontSize: 11.5, color: T.inkSoft, lineHeight: 1.75 }}>
+            <div style={{ fontWeight: 700, color: T.ink, marginBottom: 5 }}>💡 為什麼在這裡加碼？</div>
+            透過<b>公司與阿爾發的企業合作方案</b>下單，共用同一信託帳戶與投組，
+            買入手續費 <span className="mono" style={{ fontWeight: 700 }}>0.1425%</span>（企業費率）；
+            自行開零售帳戶費率較高 <Badge color={T.orange}>零售 __%　待補</Badge>
+          </div>
         </div>
-        <div style={{ background:'#f8fafc', border:`1px dashed ${T.line}`, borderRadius: 10,
-          padding:'13px 16px', fontSize: 12, color: T.inkSoft, lineHeight: 1.8 }}>
-          <div style={{ fontWeight: 700, color: T.ink, marginBottom: 6 }}>💡 為什麼在這裡加碼，而不是自己開戶？</div>
-          您的自提金透過<b>公司與阿爾發的企業合作方案</b>下單，與公提金共用同一信託帳戶、同一投資組合管理：
-          買入手續費 <span className="mono" style={{ fontWeight: 700 }}>0.1425%</span>（企業方案平台費率）。
-          自行開立零售帳戶則需自付較高費率：
-          <Badge color={T.orange}>零售費率 __%　待補 — 規格文件未提供，請向產品經理確認</Badge>
-          <div style={{ marginTop: 6, fontSize: 11, color: T.mute }}>
-            自提資產屬於您個人，離職後可攜出；提領規則請見「常見問題」。
+        {/* 右：即時成長預覽圖 */}
+        <div style={{ background:'#fbfdff', border:`1px solid ${T.line}`, borderRadius: 12, padding:'16px 18px',
+          display:'flex', flexDirection:'column' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom: 4 }}>
+            <span style={{ fontSize: 12.5, fontWeight: 700 }}>📈 加碼後的退休資產預覽</span>
+            <span style={{ fontSize: 10.5, color: T.mute }}>RR4 年化 6.5% · 至 65 歲</span>
+          </div>
+          {n > 0 ? (
+            <div style={{ fontSize: 12.5, color: T.inkSoft, marginBottom: 8 }}>
+              這筆 <b className="mono" style={{ color: T.green }}>NT${n.toLocaleString()}</b> 到退休時預估成長為
+              <b className="mono" style={{ color: T.green }}> NT${Math.round(diff).toLocaleString()}</b>
+              <span style={{ color: T.mute }}>（約 {(diff / n).toFixed(1)} 倍）</span>
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, color: T.mute, marginBottom: 8 }}>
+              👆 選擇或輸入金額，立即預覽對退休資產的影響。
+            </div>
+          )}
+          <LineChart auto w={500} h={168} yFmt={v => 'NT$'+(v/1000).toFixed(0)+'k'} labels={labels}
+            series={n > 0
+              ? [{ pts: base.pts, c: T.dim, dash:'5 4' }, { pts: boost.pts, c: T.green }]
+              : [{ pts: base.pts, c: T.blue }]} />
+          <div style={{ display:'flex', gap: 16, fontSize: 11, color: T.mute, marginTop: 6 }}>
+            {n > 0 ? (<>
+              <span><span style={{ color: T.dim }}>––</span> 目前路徑 <b className="mono">NT${Math.round(base.final).toLocaleString()}</b></span>
+              <span><span style={{ color: T.green }}>—</span> 加碼後 <b className="mono">NT${Math.round(boost.final).toLocaleString()}</b></span>
+            </>) : (
+              <span><span style={{ color: T.blue }}>—</span> 目前投入路徑，65 歲預估 <b className="mono">NT${Math.round(base.final).toLocaleString()}</b></span>
+            )}
           </div>
         </div>
       </div>
@@ -2633,9 +2755,11 @@ function TopUpCard({ topUps, onTopUp }) {
    L3-A 投資監控（個人）
 ═══════════════════════════════════════════════ */
 function L3Dashboard({ setPage, topUps = [], onTopUp }) {
+  const [tab, setTab] = useState('總覽');
   const topUpTotal = topUps.reduce((a, t) => a + t.amt, 0);
+  const totalAsset = 8140 + topUpTotal;
   const mc = useMemo(() => monteCarlo({ start: 8140, monthly: 350, mu: 0.07, sigma: 0.10, years: 25 }), []);
-  const growth = [7200, 7350, 7500, 7620, 7800, 7950, 8140];
+  const growth = [7200, 7350, 7500, 7620, 7800, 7950, totalAsset];
   const holdings = [
     { name:'全球股票ETF (VT)', w: 60, cost: 4500, mv: 4884, ret: 8.53, c: T.blue },
     { name:'全球債券ETF (BND)', w: 35, cost: 2800, mv: 2849, ret: 1.75, c: T.green },
@@ -2645,112 +2769,109 @@ function L3Dashboard({ setPage, topUps = [], onTopUp }) {
     <div>
       <PageHead title="投資監控（個人）" sub="即時掌握您專戶的資產配置與累積成長，包含公司福儲與個人投資。"
         right={<span className="mono" style={{ fontSize: 11, color: T.mute }}>資料更新時間 2026/07/06 14:00 (UTC+8)</span>} />
-      {/* 我的資產 Hero：總資產放大 + 退休目標進度（distance to goal） */}
+      {/* 我的資產 Hero：總資產放大 + 退休目標進度（始終可見） */}
       <div style={{ background:`linear-gradient(135deg, ${T.blue}, #1d4ed8)`, borderRadius: 16,
-        padding:'30px 34px', color:'#fff', marginBottom: 20, display:'grid',
+        padding:'30px 34px', color:'#fff', marginBottom: 18, display:'grid',
         gridTemplateColumns:'1.15fr 1fr', gap: 36, alignItems:'center' }}>
         <div>
           <div style={{ fontSize: 13.5, opacity:.75, fontWeight: 600 }}>目前總資產</div>
           <div className="mono" style={{ fontSize: 48, fontWeight: 700, margin:'10px 0 14px', lineHeight: 1 }}>
-            $ {(8140 + topUpTotal).toLocaleString()}
+            NT$ {totalAsset.toLocaleString()}
           </div>
           <span style={{ fontSize: 12, background:'rgba(255,255,255,.2)', borderRadius: 20, padding:'4px 12px' }}>
-            📈 累計含息 +$440 (5.7%)
+            📈 累計含息 +NT$440 (5.7%)
           </span>
           <div style={{ display:'flex', gap: 26, marginTop: 22, fontSize: 12.5, flexWrap:'wrap' }}>
-            <span><span style={{ opacity:.7 }}>🏢 公司福儲</span> <b className="mono">$6,240</b> <span style={{ opacity:.55, fontSize: 11 }}>(含收益)</span></span>
-            <span><span style={{ opacity:.7 }}>🌱 個人自提</span> <b className="mono">${(1900 + topUpTotal).toLocaleString()}</b>
-              {topUpTotal > 0 && <span style={{ fontSize: 11, opacity:.85 }}> (+${topUpTotal.toLocaleString()} 處理中)</span>}</span>
-            <span style={{ opacity:.6 }}>投入成本 <span className="mono">${(7700 + topUpTotal).toLocaleString()}</span></span>
+            <span><span style={{ opacity:.7 }}>🏢 公司福儲</span> <b className="mono">NT$6,240</b> <span style={{ opacity:.55, fontSize: 11 }}>(含收益)</span></span>
+            <span><span style={{ opacity:.7 }}>🌱 個人自提</span> <b className="mono">NT${(1900 + topUpTotal).toLocaleString()}</b>
+              {topUpTotal > 0 && <span style={{ fontSize: 11, opacity:.85 }}> (+NT${topUpTotal.toLocaleString()} 處理中)</span>}</span>
+            <span style={{ opacity:.6 }}>投入成本 <span className="mono">NT${(7700 + topUpTotal).toLocaleString()}</span></span>
           </div>
         </div>
         <div style={{ background:'rgba(255,255,255,.13)', borderRadius: 14, padding:'22px 24px' }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom: 12 }}>
-            <span style={{ fontSize: 13.5, fontWeight: 700 }}>🎯 退休目標進度</span>
+            <span style={{ fontSize: 13.5, fontWeight: 700 }}>🎯 退休目標進度
+              <span style={{ fontSize: 10.5, fontWeight: 600, opacity:.7, background:'rgba(255,255,255,.2)',
+                borderRadius: 12, padding:'1px 8px', marginLeft: 8 }}>示範</span></span>
             <span className="mono" style={{ fontSize: 24, fontWeight: 700, color:'#9ff0c0' }}>102%</span>
           </div>
           <div style={{ height: 10, background:'rgba(255,255,255,.22)', borderRadius: 6, overflow:'hidden', marginBottom: 12 }}>
             <div style={{ width:'100%', height:'100%', background:'#7fe0a8', borderRadius: 6 }} />
           </div>
           <div style={{ fontSize: 12.5, lineHeight: 1.8, opacity:.92 }}>
-            依目前投入節奏，65 歲預估累積 <b className="mono">$2,450,000</b>，
-            已超越目標 <b className="mono">$2,400,000</b> — 進度超前 🎉
+            以預設目標 <b className="mono">NT$2,400,000</b> 為例，依示範投入節奏 65 歲預估累積約
+            <b className="mono"> NT$2,450,000</b>。實際目標與投入請於「退休規劃試算」設定。
           </div>
           <button onClick={() => setPage('retire')} style={{ marginTop: 14, background:'rgba(255,255,255,.92)',
             border:'none', color:'#1d4ed8', fontSize: 12.5, fontWeight: 700, borderRadius: 8,
-            padding:'8px 16px', cursor:'pointer' }}>調整我的目標 →</button>
+            padding:'8px 16px', cursor:'pointer' }}>設定我的目標 →</button>
         </div>
       </div>
-      {/* 行動與設定 */}
-      <div style={{ display:'grid', gridTemplateColumns:'1.6fr 1fr', gap: 20, marginBottom: 20, alignItems:'stretch' }}>
-        <TopUpCard topUps={topUps} onTopUp={onTopUp} />
-        <Card>
-          <div style={{ fontSize: 12.5, color: T.mute, fontWeight: 600 }}>🎯 目前的風險設定</div>
-          <div style={{ fontSize: 23, fontWeight: 700, margin:'10px 0 8px', color: T.green }}>穩健型 (RR4)</div>
-          <div style={{ fontSize: 12.5, color: T.mute, lineHeight: 1.75 }}>
-            兼顧成長與波動控制，適合中長期累積。您的投資組合依此屬性自動配置與再平衡。
-          </div>
-          <button onClick={() => setPage('member')} style={{ background:'none', border:'none', color: T.blue,
-            fontSize: 12.5, fontWeight: 600, padding: 0, marginTop: 14, cursor:'pointer' }}>重新評估風險屬性 →</button>
-        </Card>
+      {/* 分頁：把長頁面切成短區塊，預設看見成長圖 */}
+      <div style={{ marginBottom: 18 }}>
+        <Tabs tabs={['總覽','加碼投資','持倉與預測']} cur={tab} set={setTab} />
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:'1.5fr 1fr', gap: 20, marginBottom: 20 }}>
-        <Card>
-          <CardTitle>📈 資產成長趨勢（歷史軌跡）</CardTitle>
-          <LineChart w={560} h={190} fill yFmt={n => '$'+(n/1000).toFixed(1)+'k'}
-            series={[{ pts: growth, c: T.blue }]}
-            labels={[{i:0,t:'2026 1月'},{i:2,t:'3月'},{i:4,t:'5月'},{i:6,t:'7月'}]} />
-        </Card>
-        <Card>
-          <CardTitle>🕐 目前資產分布</CardTitle>
-          <div style={{ display:'flex', alignItems:'center', gap: 18, justifyContent:'center' }}>
-            <Donut size={128} stroke={19} data={holdings.map(h => ({ v: h.w, c: h.c }))} />
-            <Legend items={holdings.map(h => ({ l: h.name.split(' ')[0], v: h.w + '%', c: h.c }))} />
-          </div>
-        </Card>
-      </div>
-      <Card style={{ marginBottom: 20 }}>
-        <CardTitle sub="點擊各標的可查看每一筆買進的成本、市值與獨立報酬率。">🧾 各檔投資標的獨立報酬與分批買進明細</CardTitle>
-        <Tbl head={['標的名稱','目標配置','投入成本','目前市值','報酬率']}
-          align={['left','right','right','right','right']}
-          rows={holdings.map(h => [
-            <span><Badge color={h.c}>A</Badge>　<b style={{ fontSize: 12.5 }}>{h.name}</b></span>,
-            <span className="mono">{h.w}%</span>,
-            <span className="mono">${h.cost.toLocaleString()}</span>,
-            <span className="mono" style={{ fontWeight: 600 }}>${h.mv.toLocaleString()}</span>,
-            <span className="mono" style={{ color: T.red, fontWeight: 600 }}>+{h.ret}% ▾</span>,
-          ])} />
-      </Card>
-      <div style={{ display:'grid', gridTemplateColumns:'1.5fr 1fr', gap: 20 }}>
-        <Card>
-          <CardTitle sub="顯示您目前的資產組合投資推估(RR4)，模擬未來的可能資產範圍。">🎲 蒙地卡羅資產預測 (Monte Carlo Simulation)</CardTitle>
-          <BandChart p10={mc.p10} p50={mc.p50} p90={mc.p90} yFmt={n => '$'+(n/1000).toFixed(0)+'k'} />
-          <div style={{ display:'flex', gap: 16, fontSize: 11, color: T.mute, marginTop: 6, justifyContent:'center' }}>
-            <span><span style={{ color: T.green }}>––</span> 樂觀情境上緣 (P90)</span>
-            <span><span style={{ color: T.blue }}>—</span> 預期中位數 (P50)</span>
-            <span><span style={{ color: T.orange }}>––</span> 保守情境下緣 (P10)</span>
-          </div>
-        </Card>
-        <Card>
-          <CardTitle>💡 系統提供資訊</CardTitle>
-          {[
-            { i:'📊', t:'福儲與個人專戶整合檢視', d:'您可以一併檢視公司福儲計畫與自主加碼投資的資產分佈與績效表現。' },
-            { i:'⚖️', t:'動態風險平衡與預測', d:'基於全球市場資料與蒙地卡羅模擬，推估長期資產可能區間，幫助您安心留在市場。' },
-            { i:'💵', t:'個人與機構紀錄查詢', d:'您可以隨時檢視「成交明細」，掌握每一筆機構與個人交易的完整軌跡與憑證。' },
-          ].map((x, i) => (
-            <div key={i} style={{ display:'flex', gap: 12, padding:'10px 0', borderBottom:`1px solid #eef1f5` }}>
-              <span style={{ fontSize: 18 }}>{x.i}</span>
-              <div>
-                <div style={{ fontSize: 12.5, fontWeight: 700 }}>{x.t}</div>
-                <div style={{ fontSize: 11.5, color: T.mute, lineHeight: 1.65, marginTop: 3 }}>{x.d}</div>
+
+      {tab === '總覽' && (
+        <div className="fade-up" style={{ display:'grid', gridTemplateColumns:'1.5fr 1fr', gap: 20, alignItems:'start' }}>
+          <Card>
+            <CardTitle sub="您的專戶資產每月累積軌跡。">📈 資產成長趨勢（歷史軌跡）</CardTitle>
+            <LineChart w={560} h={230} fill yFmt={n => 'NT$'+(n/1000).toFixed(1)+'k'}
+              series={[{ pts: growth, c: T.blue }]}
+              labels={[{i:0,t:'2026 1月'},{i:2,t:'3月'},{i:4,t:'5月'},{i:6,t:'7月'}]} />
+          </Card>
+          <div style={{ display:'flex', flexDirection:'column', gap: 20 }}>
+            <Card>
+              <CardTitle>🕐 目前資產分布</CardTitle>
+              <div style={{ display:'flex', alignItems:'center', gap: 18, justifyContent:'center' }}>
+                <Donut size={120} stroke={18} data={holdings.map(h => ({ v: h.w, c: h.c }))} />
+                <Legend items={holdings.map(h => ({ l: h.name.split(' ')[0], v: h.w + '%', c: h.c }))} />
               </div>
+            </Card>
+            <Card>
+              <div style={{ fontSize: 12.5, color: T.mute, fontWeight: 600 }}>🎯 目前的風險設定</div>
+              <div style={{ fontSize: 22, fontWeight: 700, margin:'8px 0 6px', color: T.green }}>穩健型 (<Term k="RR">RR4</Term>)</div>
+              <div style={{ fontSize: 12, color: T.mute, lineHeight: 1.7 }}>
+                兼顧成長與波動控制，投資組合依此自動配置與再平衡。
+              </div>
+              <button onClick={() => setPage('member')} style={{ background:'none', border:'none', color: T.blue,
+                fontSize: 12, fontWeight: 600, padding: 0, marginTop: 10, cursor:'pointer' }}>重新評估風險屬性 →</button>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {tab === '加碼投資' && (
+        <div className="fade-up">
+          <TopUpCard topUps={topUps} onTopUp={onTopUp} currentTotal={totalAsset} />
+        </div>
+      )}
+
+      {tab === '持倉與預測' && (
+        <div className="fade-up" style={{ display:'flex', flexDirection:'column', gap: 20 }}>
+          <Card>
+            <CardTitle sub="點擊各標的可查看每一筆買進的成本、市值與獨立報酬率。">🧾 各檔投資標的獨立報酬與分批買進明細</CardTitle>
+            <Tbl head={['標的名稱','目標配置','投入成本','目前市值','報酬率']}
+              align={['left','right','right','right','right']}
+              rows={holdings.map(h => [
+                <span><Badge color={h.c}>A</Badge>　<b style={{ fontSize: 12.5 }}>{h.name}</b></span>,
+                <span className="mono">{h.w}%</span>,
+                <span className="mono">NT${h.cost.toLocaleString()}</span>,
+                <span className="mono" style={{ fontWeight: 600 }}>NT${h.mv.toLocaleString()}</span>,
+                <span className="mono" style={{ color: T.red, fontWeight: 600 }}>+{h.ret}% ▾</span>,
+              ])} />
+          </Card>
+          <Card>
+            <CardTitle sub="顯示您目前的資產組合投資推估(RR4)，模擬未來 25 年的可能資產範圍。">🎲 <Term k="蒙地卡羅">蒙地卡羅</Term>資產預測 (Monte Carlo Simulation)</CardTitle>
+            <BandChart p10={mc.p10} p50={mc.p50} p90={mc.p90} w={760} h={230} yFmt={n => 'NT$'+(n/1000).toFixed(0)+'k'} />
+            <div style={{ display:'flex', gap: 16, fontSize: 11, color: T.mute, marginTop: 6, justifyContent:'center' }}>
+              <span><span style={{ color: T.green }}>––</span> 樂觀情境上緣 (P90)</span>
+              <span><span style={{ color: T.blue }}>—</span> 預期中位數 (P50)</span>
+              <span><span style={{ color: T.orange }}>––</span> 保守情境下緣 (P10)</span>
             </div>
-          ))}
-          <button onClick={() => setPage('faq')} style={{ width:'100%', marginTop: 12, padding:'10px 0',
-            background:'#fff', border:`1px solid ${T.line}`, borderRadius: 9, fontSize: 12.5,
-            fontWeight: 600, color: T.inkSoft }}>了解更多您的投資報告 ↗</button>
-        </Card>
-      </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
@@ -2784,7 +2905,7 @@ function L3Trades({ topUps = [] }) {
             <span className="mono" style={{ fontSize: 11.5 }}>{t.no}</span>,
             <Badge color={t.src === '個人自提' ? T.green : T.blue}>{t.src === '個人自提' ? '👤 個人自提' : '🏛 機構(公司)'}</Badge>,
             t.type, t.target,
-            <span className="mono" style={{ fontWeight: 600 }}>${t.amt.toLocaleString()}</span>,
+            <span className="mono" style={{ fontWeight: 600 }}>NT${t.amt.toLocaleString()}</span>,
             <Badge color={t.status === '處理中' ? T.orange : T.green}>{t.status}</Badge>,
             <button onClick={() => setOpen(open === i ? -1 : i)} style={{ background:'none', border:'none',
               color: T.mute, transform: open === i ? 'rotate(180deg)' : 'none', transition:'transform .15s' }}>⌄</button>,
@@ -3067,9 +3188,9 @@ function App() {
     <div>
       <Sidebar role={role} page={page} setPage={setPage} onLogout={logout}
         onSwitchRole={logout} />
-      <div style={{ marginLeft: 218, minHeight:'100vh', display:'flex', flexDirection:'column' }}>
+      <div className="app-content" style={{ marginLeft: 218, minHeight:'100vh', display:'flex', flexDirection:'column' }}>
         {/* 頂部麵包屑列 */}
-        <div style={{ background:'#fff', borderBottom:`1px solid ${T.line}`, padding:'11px 26px',
+        <div className="app-crumb" style={{ background:'#fff', borderBottom:`1px solid ${T.line}`, padding:'11px 26px',
           display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top: 0, zIndex: 40 }}>
           <div style={{ fontSize: 12.5, color: T.mute }}>
             <span style={{ cursor:'pointer', color: page === 'home' ? T.ink : T.blue, fontWeight: page === 'home' ? 700 : 500 }}
@@ -3083,7 +3204,7 @@ function App() {
             <Badge color={ROLES[role].color}>{ROLES[role].label}</Badge>
           </div>
         </div>
-        <div key={role + page} className="fade-up" style={{ flex: 1, padding:'24px 26px 60px', maxWidth: 1280, width:'100%' }}>
+        <div key={role + page} className="fade-up app-main" style={{ flex: 1, padding:'24px 26px 60px', maxWidth: 1280, width:'100%' }}>
           {body}
         </div>
         <div style={{ padding:'14px 26px', borderTop:`1px solid ${T.line}`, fontSize: 10.5, color: T.dim,
